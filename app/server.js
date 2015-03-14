@@ -4,19 +4,28 @@
 // data to client.
 
 var koa = require('koa'),
-    app = koa();
+    router = require('koa-router'),
+    error = require('koa-error'),
+    compress = require('koa-compress'),
+    serve = require('koa-static'),
+    logger = require('koa-logger'),
+    app = koa(),
+    port = 3000;
 
 // Logging
-app.use(function *(next) {
-    var start = new Date;
-    yield next;
-    var ms = new Date - start;
-    console.log('%s %s - %s', this.method, this.url, ms);
+app.use(logger());
+
+// Error handling.
+app.use(error());
+
+// Serve up public.
+app.use(serve('public'));
+
+// Set up router middleware.
+app.use(router(app));
+
+app.use(compress());
+
+app.listen(port, function() {
+    console.log("Started Koa server, listening on port: " + port);
 });
-
-app.use(function *() {
-    this.body = 'Hello World';
-});
-
-
-app.listen(3000);
