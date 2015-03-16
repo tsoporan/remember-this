@@ -1,71 +1,80 @@
 // Send out current tab to RememberThis.
 
-var postTo = 'http://localhost:3000/capture'
-
-function ajax(options, callback) {
-    var xhr = new XMLHttpRequest();
-    xhr.open(options.method, options.url, true);
-    xhr.setRequestHeader("Content-type", "application/json");
-    xhr.send(JSON.stringify(options.data));
-
-    xhr.onreadystatechange = function() {
-        if (xhr.readyState === 4) {
-            return callback(xhr)
-        }
-    }
-}
-
-// Handle server response.
-function handleResponse(response) {
-    console.log('response', response);
-}
+var postToURL = 'http://localhost:3000/capture',
+    user_id;
 
 function pushPage(message) {
-	console.log('push page message', message);
-
-    var now = new Date,
-        data = {
+    var data = {
             'title': message.title,
             'url': message.url,
             'body': message.body,
-            'date': now,
-            'uid' : 1,
+            'date': new Date,
+            'user_id' : user_id,
     };
 
     // POST
-    console.log('making post to ', postTo, 'with', data);
-    ajax({
-        url: postTo,
-        method: 'POST',
-        data : data,
-    }, handleResponse);
+    console.log('making post to ', postToURL, 'with', data);
 
+    // Chrome 42 - Fetch, replaces XHMHttpRequest
+    fetch(postToURL, {
+        method: 'POST',
+        headers: {
+            'Content-type': 'application/json',
+        },
+        body: data,
+    })
+    .then(function(data) {
+        console.log('success with json', data);
+    })
+    .catch(function(error) {
+        console.log('request failed', error);
+    });
 }
 
-// Reads the current page on the active tab.
-function readPage(callback) {
+function readPage(tab) {
+        console.log('reading page');
+        chrome.tabs.executeScript(tab.id, {
+            file: 'injected.js',
+        });
+}
 
-    console.log('exectuting injected');
-	chrome.tabs.executeScript(null, { 
-		file: 'injected.js',
-	});
+function init(tab) {
 
-    console.log('done');
+    console.log('init');
 
-    console.log('on message');
-    chrome.runtime.onMessage.addListener(function(message)  { 
+    // Get the user first.
+    chrome.storage.sync.get('userid', function(items) {
 
-        console.log('before callback message');
-        callback(message); 
-    }); 	
+        console.log('storage get', items);
+
+        if (chrome.runtime.lastError)  {
+            console.log('error', chrome.runtime.lastError);
+        } else {
+            user_id = items.userid;
+
+            if (!user_id) {
+
+                user_id = 1; // TODO: generate this
+        
+                console.log('no user id, setting', user_id);
+
+                chrome.storage.sync.set({ 'userid': user_id }, function() {
+                    readPage(tab);       
+                });
+
+            } else {
+                console.log('user id found', user_id);
+                readPage(tab);
+            }
+
+        }
+    });
 }
 
 // Runs on extension click.
-chrome.browserAction.onClicked.addListener(function(tab) {
+chrome.browserAction.onClicked.addListener(init); 
 
-	chrome.runtime.getBackgroundPage(function(eventPage) {
-		console.log('event page', eventPage);
-
-		eventPage.readPage(pushPage);
-	});
+// Fed back page data from injected.
+chrome.runtime.onMessage.addListener(function(message) {
+    pushPage(message);
 });
