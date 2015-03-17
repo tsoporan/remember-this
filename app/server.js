@@ -4,12 +4,14 @@
 // data to client.
 
 var koa = require('koa'),
-    router = require('koa-router')(),
     error = require('koa-error'),
     compress = require('koa-compress'),
     serve = require('koa-static'),
     logger = require('koa-logger'),
     parse = require('co-body'),
+    
+    router = require('./router'),
+
     app = koa(),
     port = 3000;
 
@@ -21,14 +23,6 @@ app.use(error());
 
 // Serve up public.
 app.use(serve('public'));
-
-
-function* handleData(next) {
-    var body = yield parse.json(this);
-    this.redirect('/')
-}
-
-router.post('/capture', handleData);
 
 // Set up router middleware.
 app.use(router.routes());
