@@ -5,5 +5,3 @@ exports.capture = function* () {
 
     this.body = 'Worked!';
 };
-
-
